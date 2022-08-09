@@ -1,0 +1,26 @@
+{
+    "name": "jaxkdev/discordaccount",
+    "type": "library",
+    "description": "A central plugin to authorise connections between Minecraft and Discord accounts.",
+    "license": "OSL-3.0",
+    "authors": [
+        {
+            "name": "JaxkDev",
+            "email": "JaxkDev@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "JaxkDev\\DiscordAccount\\": "src"
+        }
+    },
+    "require": {
+        "php": "^8.0",
+        "sof3/libasynql": "^4.1"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^1.8.2",
+        "phpstan/phpstan-strict-rules": "1.3.0",
+        "pocketmine/pocketmine-mp": "^4"
+    }
+}
