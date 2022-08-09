@@ -16,7 +16,8 @@
     },
     "require": {
         "php": "^8.0",
-        "sof3/libasynql": "^4.1"
+        "sof3/libasynql": "^4.1",
+        "jaxkdev/discordbot": "^2"
     },
     "require-dev": {
         "phpstan/phpstan": "^1.8.2",
