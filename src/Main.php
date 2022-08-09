@@ -25,6 +25,7 @@ class Main extends PluginBase{
 
     public function onLoad(): void{
         $this->checkPrerequisites();
+        $this->checkConfig();
     }
 
     public function onEnable(): void{
@@ -62,6 +63,39 @@ class Main extends PluginBase{
         $this->discord = $discordBot;
     }
 
+    private function checkConfig(): void{
+        $this->getLogger()->debug("Loading and checking configuration...");
+
+        /** @var array<string, mixed> $config */
+        $config = $this->getConfig()->getAll();
+        if($config === [] or !is_int($config["version"]??"")){
+            $this->disable("Failed to parse config.yml");
+        }
+        $this->getLogger()->debug("Config loaded, version: ".$config["version"]);
+
+        if(intval($config["version"]) !== ConfigUtils::VERSION){
+            $old = $config["version"];
+            $this->getLogger()->info("Updating your config from v".$old." to v".ConfigUtils::VERSION);
+            ConfigUtils::update($config);
+            rename($this->getDataFolder()."config.yml", $this->getDataFolder()."config.yml.v".$old);
+            $this->getConfig()->setAll($config);
+            $this->getConfig()->save();
+            $this->getLogger()->notice("Config updated, old config was saved to '{$this->getDataFolder()}config.yml.v".$old."'");
+        }
+
+        $this->getLogger()->debug("Verifying config...");
+        $result_raw = ConfigUtils::verify($config);
+        if(sizeof($result_raw) !== 0){
+            $result = "There were some problems with your config.yml, see below:\n";
+            foreach($result_raw as $value){
+                $result .= "$value\n";
+            }
+            $this->getLogger()->error(rtrim($result));
+            $this->disable("Config.yml has problems.");
+        }
+        $this->getLogger()->debug("Config verified.");
+    }
+
     /**
      * @throw DisablePluginException
      * @return never-returns
@@ -69,5 +103,9 @@ class Main extends PluginBase{
     private function disable(string $message): void{
         $this->getLogger()->critical($message);
         throw new DisablePluginException($message); //message isn't always shown to user so send critical message.
+    }
+
+    public function getDiscord(): DiscordBot{
+        return $this->discord;
     }
 }
