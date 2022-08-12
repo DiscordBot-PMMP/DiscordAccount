@@ -32,6 +32,7 @@ class Main extends PluginBase{
         if($this->getServer()->getPluginManager()->getPlugin("DiscordBot")?->isEnabled() !== true){
             $this->disable("DiscordBot is not enabled! Dependency must be enabled for this plugin to operate.");
         }
+        $this->getServer()->getPluginManager()->registerEvents(new DiscordListener($this), $this);
     }
 
     private function checkPrerequisites(): void{

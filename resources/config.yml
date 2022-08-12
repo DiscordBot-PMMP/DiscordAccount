@@ -1,8 +1,10 @@
 version: 1
 
 general:
-  debug: false
   check_updates: true
+
+discord:
+  command: "/link"
 
 database:
   # The database type. "sqlite" and "mysql" are supported.
