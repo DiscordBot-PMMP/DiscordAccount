@@ -13,8 +13,8 @@
 namespace JaxkDev\DiscordAccount;
 
 final class Utils{
-    public static function generateCode(int $length, string $chars): string{
-        mt_srand((double)microtime()*1000000);
+    public static function generateCode(int $length, string $chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789"): string{
+        mt_srand(intval(microtime(true)*1000000));
         $pass = '' ;
         for($i = 0; $i < $length; $i += 1){
             $num = mt_rand() % strlen($chars);
