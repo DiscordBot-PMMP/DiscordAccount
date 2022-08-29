@@ -22,10 +22,13 @@ use pocketmine\plugin\DisablePluginException;
 use pocketmine\plugin\PluginBase;
 use pocketmine\utils\TextFormat;
 use pocketmine\utils\VersionString;
+use poggit\libasynql\DataConnector;
 use poggit\libasynql\libasynql;
+use poggit\libasynql\SqlError;
 
 class Main extends PluginBase{
 
+    private DataConnector $database;
     private DiscordBot $discord;
 
     public function onLoad(): void{
@@ -37,7 +40,23 @@ class Main extends PluginBase{
         if($this->getServer()->getPluginManager()->getPlugin("DiscordBot")?->isEnabled() !== true){
             $this->disable("DiscordBot is not enabled! Dependency must be enabled for this plugin to operate.");
         }
+        $this->database = libasynql::create($this, $this->getConfig()->get("database"), [
+            "sqlite" => "sql/sqlite.sql",
+            "mysql" => "sql/mysql.sql"
+        ]);
+        foreach(["init.minecraft", "init.links", "init.codes"] as $stmt){
+            $this->database->executeGeneric($stmt, [], null, function(SqlError $error) use($stmt){
+                $this->disable("Failed to execute sql statement ($stmt) - " . $error->getMessage());
+            });
+        }
         $this->getServer()->getPluginManager()->registerEvents(new DiscordListener($this), $this);
+    }
+
+    public function onDisable(): void{
+        if(isset($this->database)){
+            $this->database->waitAll();
+            $this->database->close();
+        }
     }
 
     private function checkPrerequisites(): void{

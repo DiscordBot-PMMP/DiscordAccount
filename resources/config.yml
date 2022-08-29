@@ -9,7 +9,7 @@ discord:
 code:
   # The possible characters in the unique code, suggested to remove visually similar characters.
   characters: "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789"
-  # The size in characters of the unique code given to a user.
+  # The size in characters of the unique code given to a user, minimum 4 and maximum 16 characters.
   size: 6
   # The time in minutes that a code is valid for, minimum 1 minute and maximum 1440 minutes (24 hours).
   timeout: 15
