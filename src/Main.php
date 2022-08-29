@@ -44,7 +44,7 @@ class Main extends PluginBase{
             "sqlite" => "sql/sqlite.sql",
             "mysql" => "sql/mysql.sql"
         ]);
-        foreach(["init.minecraft", "init.links", "init.codes"] as $stmt){
+        foreach(["minecraft.init", "links.init", "codes.init"] as $stmt){
             $this->database->executeGeneric($stmt, [], null, function(SqlError $error) use($stmt){
                 $this->disable("Failed to execute sql statement ($stmt) - " . $error->getMessage());
             });

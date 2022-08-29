@@ -7,8 +7,7 @@ description: A central plugin to authorise connections between Minecraft and Dis
 website: https://github.com/DiscordBot-PMMP/DiscordAccount
 
 api: 4.0.0
-softdepend: #For development purposes only.
-  - DEVirion
+
 depend:
   - DiscordBot
 
