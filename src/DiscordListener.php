@@ -25,15 +25,15 @@ final class DiscordListener implements Listener{
         $this->plugin = $plugin;
     }
 
-    public function onMessage(MessageSent $event): void{
+    public function onDiscordMessage(MessageSent $event): void{
         $message = $event->getMessage();
         $args = explode(" ", $message->getContent());
         $command = array_shift($args);
-        if(strtolower($command) === "/link"){
+        if(strtolower($command) === $this->plugin->getConfig()->getNested("discord.command", "/mclink")){
             $reply = new Message($message->getChannelId());
             if($message->getServerId() !== null){
-                $reply->setContent("The `/link` command can only be run in my DM's.");
-                $this->plugin->getDiscord()->getApi()->addReaction($message->getChannelId(), $message->getId()??"", "❌")->otherwise(function(ApiRejection $rejection){
+                $reply->setContent("The `$command` command can only be run in my DM's.");
+                $this->plugin->getDiscord()->getApi()->addReaction($message->getChannelId(), $message->getId()??"Never Null", "❌")->otherwise(function(ApiRejection $rejection){
                     $this->plugin->getLogger()->error($rejection->getMessage());
                 });
                 $this->plugin->getDiscord()->getApi()->sendMessage($reply)->otherwise(function(ApiRejection $rejection){
@@ -49,14 +49,14 @@ final class DiscordListener implements Listener{
             $reply->setChannelId($message->getAuthorId());
             if(sizeof($args) !== 1){
                 //Invalid usage.
-                $reply->setContent("<@{$message->getAuthorId()}>, Usage: `/link <code / minecraft username>`");
+                $reply->setContent("<@{$message->getAuthorId()}>, Usage: `$command <code>`");
                 //$this->plugin->getDiscord()->getApi()->addReaction($message->getAuthorId(), $message->getId(), "❌"); https://github.com/DiscordBot-PMMP/DiscordBot/issues/73
                 $this->plugin->getDiscord()->getApi()->sendMessage($reply)->otherwise(function(ApiRejection $rejection){
                     $this->plugin->getLogger()->error($rejection->getMessage());
                 });
             }else{
-                //Code/username provided.
-                //TODO, verify/generate code
+                //Code provided.
+                //TODO, verify code.
             }
         }
     }

@@ -13,9 +13,14 @@
 namespace JaxkDev\DiscordAccount;
 
 use JaxkDev\DiscordBot\Plugin\Main as DiscordBot;
+use JaxkDev\DiscordBot\Plugin\Storage;
 use Phar;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\player\Player;
 use pocketmine\plugin\DisablePluginException;
 use pocketmine\plugin\PluginBase;
+use pocketmine\utils\TextFormat;
 use pocketmine\utils\VersionString;
 use poggit\libasynql\libasynql;
 
@@ -83,6 +88,7 @@ class Main extends PluginBase{
             ConfigUtils::update($config);
             rename($this->getDataFolder()."config.yml", $this->getDataFolder()."config.yml.v".$old);
             $this->getConfig()->setAll($config);
+            /** @noinspection PhpUnhandledExceptionInspection */
             $this->getConfig()->save();
             $this->getLogger()->notice("Config updated, old config was saved to '{$this->getDataFolder()}config.yml.v".$old."'");
         }
@@ -107,6 +113,34 @@ class Main extends PluginBase{
     private function disable(string $message): void{
         $this->getLogger()->critical($message);
         throw new DisablePluginException($message); //message isn't always shown to user so send critical message.
+    }
+
+    public function onCommand(CommandSender $sender, Command $command, string $label, array $args): bool{
+        if($command->getName() === "discordlink"){
+            if(!$sender instanceof Player){
+                $sender->sendMessage(TextFormat::RED . "This command can only be used in-game as a player.");
+                return true;
+            }
+            if(($bot = Storage::getBotUser()) === null){
+                //Shouldn't really happen as time for player to join is same if not longer than discord start times, but just in case.
+                $sender->sendMessage("§cDiscord is not ready yet, please try again.\nIf this issue persists please contact a server administrator.");
+                return true;
+            }
+            $cfg = $this->getConfig();
+            $length = $cfg->getNested("code.length", 6);
+            $chars = $cfg->getNested("code.characters", "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789");
+            $code = Utils::generateCode($length, $chars);
+            $time = $cfg->getNested("code.timeout", 15);
+            $tag = $bot->getUsername()."#" . $bot->getDiscriminator();
+            $cmd = $cfg->getNested("discord.command", "/mclink");
+
+            //TODO, libasynql here.
+
+            $this->getLogger()->debug("New code generated for {$sender->getName()} ({$sender->getUniqueID()->toString()}) - $code");
+            $sender->sendMessage("Your code is: ".TextFormat::RED . TextFormat::BOLD . $code . TextFormat::RESET.", it will expire in $time minutes.\nSend this message to $tag in the discord server.");
+            $sender->sendMessage(TextFormat::GOLD . TextFormat::ITALIC . "$cmd $code");
+        }
+        return true;
     }
 
     public function getDiscord(): DiscordBot{

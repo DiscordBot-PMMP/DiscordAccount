@@ -11,3 +11,15 @@ softdepend: #For development purposes only.
   - DEVirion
 depend:
   - DiscordBot
+
+commands:
+  discordlink:
+    description: "Link your Minecraft account to your Discord account."
+    usage: "/discordlink"
+    aliases: [linkdiscord]
+    permission: "discordaccount.command"
+
+permissions:
+  discordaccount.command:
+    default: true
+    description: "Allows the user to use the /discordlink command."
