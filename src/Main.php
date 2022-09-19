@@ -166,7 +166,7 @@ class Main extends PluginBase{
             $cmd = $cfg->getNested("discord.link_command", "/mclink");
 
             //Callbacks... :/
-            $this->database->executeInsert("minecraft.insert", ["uuid" => $sender->getUniqueId()->toString(), "username" => $sender->getName()], function(int $insertId) use ($code, $sender, $time, $tag, $cmd): void{
+            $this->database->executeInsert("minecraft.insert", ["uuid" => $sender->getUniqueId()->toString(), "username" => strtolower($sender->getName())], function(int $insertId) use ($code, $sender, $time, $tag, $cmd): void{
                 $this->getLogger()->debug("Minecraft user checked into database, id: $insertId");
                 $this->database->executeInsert("codes.insert", ["code" => $code, "uuid" => $sender->getUniqueId()->toString(), "expiry" => time() + ($time*60)], function() use($code, $sender, $time, $tag, $cmd): void{
                     $this->getLogger()->debug("New code generated for {$sender->getName()} ({$sender->getUniqueId()->toString()}) - $code");
@@ -179,6 +179,21 @@ class Main extends PluginBase{
             }, function(SqlError $error) use($sender): void{
                 $this->getLogger()->error("Failed to check {$sender->getName()} ({$sender->getUniqueId()->toString()}) into database: " . $error->getMessage());
                 $sender->sendMessage("§cFailed to generate code, please try again later.\nIf this issue persists please contact a server administrator.");
+            });
+        }elseif($command->getName() === "discordunlink"){
+            if(!$sender instanceof Player){
+                $sender->sendMessage(TextFormat::RED . "This command can only be used in-game as a player.");
+                return true;
+            }
+            $this->database->executeChange("links.delete_uuid", ["uuid" => $sender->getUniqueId()->toString()], function(int $affectedRows) use($sender): void{
+                if($affectedRows === 0){
+                    $sender->sendMessage("§cYou are not linked to a discord account, use ".TextFormat::ITALIC . "/discordlink" . TextFormat::RESET . "§c to link your account.");
+                }else{
+                    $sender->sendMessage("§aYour discord account has been unlinked.");
+                }
+            }, function(SqlError $error) use($sender): void{
+                $this->getLogger()->error("Failed to unlink {$sender->getName()} ({$sender->getUniqueId()->toString()}) from discord: " . $error->getMessage());
+                $sender->sendMessage("§cFailed to unlink your discord account, please try again later.\nIf this issue persists please contact a server administrator.");
             });
         }
         return true;
