@@ -150,35 +150,42 @@ class Main extends PluginBase{
             }
             if(($bot = Storage::getBotUser()) === null){
                 //Shouldn't really happen as time for player to join is same if not longer than discord start times, but just in case.
-                $sender->sendMessage("§cDiscord is not ready yet, please try again.\nIf this issue persists please contact a server administrator.");
+                $sender->sendMessage(TextFormat::RED . "Discord is not ready yet, please try again.\nIf this issue persists please contact a server administrator.");
                 return true;
             }
-            $cfg = $this->getConfig();
-            /** @var int $length */
-            $length = $cfg->getNested("code.length", 6);
-            /** @var string $chars */
-            $chars = $cfg->getNested("code.characters", "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789");
-            $code = Utils::generateCode($length, $chars);
-            /** @var int $time */
-            $time = $cfg->getNested("code.timeout", 15);
-            $tag = $bot->getUsername()."#" . $bot->getDiscriminator();
-            /** @var string $cmd */
-            $cmd = $cfg->getNested("discord.link_command", "/mclink");
 
             //Callbacks... :/
-            $this->database->executeInsert("minecraft.insert", ["uuid" => $sender->getUniqueId()->toString(), "username" => strtolower($sender->getName())], function(int $insertId) use ($code, $sender, $time, $tag, $cmd): void{
-                $this->getLogger()->debug("Minecraft user checked into database, id: $insertId");
-                $this->database->executeInsert("codes.insert", ["code" => $code, "uuid" => $sender->getUniqueId()->toString(), "expiry" => time() + ($time*60)], function() use($code, $sender, $time, $tag, $cmd): void{
-                    $this->getLogger()->debug("New code generated for {$sender->getName()} ({$sender->getUniqueId()->toString()}) - $code");
-                    $sender->sendMessage("Your code is: ".TextFormat::RED . TextFormat::BOLD . $code . TextFormat::RESET.", it will expire in $time minutes.\nSend this message to $tag in discord.");
-                    $sender->sendMessage(TextFormat::GOLD . TextFormat::ITALIC . "$cmd $code");
-                }, function(SqlError $error) use($sender): void{
-                    $this->getLogger()->error("Failed to generate code for {$sender->getName()} ({$sender->getUniqueId()->toString()}): " . $error->getMessage());
-                    $sender->sendMessage("§cFailed to generate code, please try again later.\nIf this issue persists please contact a server administrator.");
+            $this->database->executeSelect("links.get_uuid", ["uuid" => $sender->getUniqueId()->toString()], function(array $rows) use ($sender, $bot): void{
+                if(sizeof($rows) !== 0){
+                    $sender->sendMessage(TextFormat::RED . "You are already linked to the discord account " . TextFormat::BOLD . TextFormat::GOLD . $rows[0]["dcid"] . TextFormat::RESET . TextFormat::RED . "\nUse /discordunlink to unlink from this discord account.");
+                    return;
+                }
+                $cfg = $this->getConfig();
+                /** @var int $length */
+                $length = $cfg->getNested("code.length", 6);
+                /** @var string $chars */
+                $chars = $cfg->getNested("code.characters", "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789");
+                $code = Utils::generateCode($length, $chars);
+                /** @var int $time */
+                $time = $cfg->getNested("code.timeout", 15);
+                $tag = $bot->getUsername()."#".$bot->getDiscriminator();
+                /** @var string $cmd */
+                $cmd = $cfg->getNested("discord.link_command", "/mclink");
+
+                $this->database->executeInsert("minecraft.insert", ["uuid" => $sender->getUniqueId()->toString(), "username" => strtolower($sender->getName())], function(int $insertId) use ($code, $sender, $time, $tag, $cmd): void{
+                    $this->getLogger()->debug("Minecraft user checked into database, id: $insertId");
+                    $this->database->executeInsert("codes.insert", ["code" => $code, "uuid" => $sender->getUniqueId()->toString(), "expiry" => time() + ($time * 60)], function() use ($code, $sender, $time, $tag, $cmd): void{
+                        $this->getLogger()->debug("New code generated for {$sender->getName()} ({$sender->getUniqueId()->toString()}) - $code");
+                        $sender->sendMessage("Your code is: ".TextFormat::RED.TextFormat::BOLD.$code.TextFormat::RESET.", it will expire in $time minutes.\nSend this message to $tag in discord.");
+                        $sender->sendMessage(TextFormat::GOLD.TextFormat::ITALIC."$cmd $code");
+                    }, function(SqlError $error) use ($sender): void{
+                        $this->getLogger()->error("Failed to generate code for {$sender->getName()} ({$sender->getUniqueId()->toString()}): ".$error->getMessage());
+                        $sender->sendMessage(TextFormat::RED . "Failed to generate code, please try again later.\nIf this issue persists please contact a server administrator.");
+                    });
+                }, function(SqlError $error) use ($sender): void{
+                    $this->getLogger()->error("Failed to check {$sender->getName()} ({$sender->getUniqueId()->toString()}) into database: ".$error->getMessage());
+                    $sender->sendMessage(TextFormat::RED . "Failed to generate code, please try again later.\nIf this issue persists please contact a server administrator.");
                 });
-            }, function(SqlError $error) use($sender): void{
-                $this->getLogger()->error("Failed to check {$sender->getName()} ({$sender->getUniqueId()->toString()}) into database: " . $error->getMessage());
-                $sender->sendMessage("§cFailed to generate code, please try again later.\nIf this issue persists please contact a server administrator.");
             });
         }elseif($command->getName() === "discordunlink"){
             if(!$sender instanceof Player){
@@ -187,13 +194,13 @@ class Main extends PluginBase{
             }
             $this->database->executeChange("links.delete_uuid", ["uuid" => $sender->getUniqueId()->toString()], function(int $affectedRows) use($sender): void{
                 if($affectedRows === 0){
-                    $sender->sendMessage("§cYou are not linked to a discord account, use ".TextFormat::ITALIC . "/discordlink" . TextFormat::RESET . "§c to link your account.");
+                    $sender->sendMessage(TextFormat::RED . "You are not linked to a discord account, use ".TextFormat::ITALIC . "/discordlink" . TextFormat::RESET . TextFormat::RED . " to link your account.");
                 }else{
                     $sender->sendMessage("§aYour discord account has been unlinked.");
                 }
             }, function(SqlError $error) use($sender): void{
                 $this->getLogger()->error("Failed to unlink {$sender->getName()} ({$sender->getUniqueId()->toString()}) from discord: " . $error->getMessage());
-                $sender->sendMessage("§cFailed to unlink your discord account, please try again later.\nIf this issue persists please contact a server administrator.");
+                $sender->sendMessage(TextFormat::RED . "Failed to unlink your discord account, please try again later.\nIf this issue persists please contact a server administrator.");
             });
         }
         return true;
