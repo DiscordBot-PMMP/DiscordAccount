@@ -15,10 +15,18 @@ commands:
   discordlink:
     description: "Link your Minecraft account to your Discord account."
     usage: "/discordlink"
-    aliases: [linkdiscord]
-    permission: "discordaccount.command"
+    aliases: [dclink]
+    permission: "discordaccount.command.link"
+  discordunlink:
+    description: "Unlink your Minecraft account from a Discord account."
+    usage: "/discordunlink"
+    aliases: [ dcunlink ]
+    permission: "discordaccount.command.unlink"
 
 permissions:
-  discordaccount.command:
+  discordaccount.command.link:
     default: true
     description: "Allows the user to use the /discordlink command."
+  discordaccount.command.unlink:
+    default: true
+    description: "Allows the user to use the /discordunlink command."

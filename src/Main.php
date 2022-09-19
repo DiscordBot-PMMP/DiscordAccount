@@ -20,6 +20,7 @@ use pocketmine\command\CommandSender;
 use pocketmine\player\Player;
 use pocketmine\plugin\DisablePluginException;
 use pocketmine\plugin\PluginBase;
+use pocketmine\scheduler\ClosureTask;
 use pocketmine\utils\TextFormat;
 use pocketmine\utils\VersionString;
 use poggit\libasynql\DataConnector;
@@ -50,6 +51,11 @@ class Main extends PluginBase{
             });
         }
         $this->getServer()->getPluginManager()->registerEvents(new DiscordListener($this), $this);
+        $this->getScheduler()->scheduleRepeatingTask(new ClosureTask(function(): void{
+            $this->database->executeGeneric("codes.clean", ["now" => time()], function(){}, function(SqlError $error){
+                $this->getLogger()->error("Failed to clean codes table - " . $error->getMessage());
+            });
+        }), 72000 * 6); //Every 6 hours just to keep the table clean for larger servers.
     }
 
     public function onDisable(): void{
@@ -131,7 +137,7 @@ class Main extends PluginBase{
      */
     private function disable(string $message): void{
         $this->getLogger()->critical($message);
-        throw new DisablePluginException($message); //message isn't always shown to user so send critical message.
+        throw new DisablePluginException($message); //message isn't always shown to user(enable/load forgot which) so send critical message.
     }
 
     public function onCommand(CommandSender $sender, Command $command, string $label, array $args): bool{
@@ -146,23 +152,41 @@ class Main extends PluginBase{
                 return true;
             }
             $cfg = $this->getConfig();
+            /** @var int $length */
             $length = $cfg->getNested("code.length", 6);
+            /** @var string $chars */
             $chars = $cfg->getNested("code.characters", "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789");
             $code = Utils::generateCode($length, $chars);
+            /** @var int $time */
             $time = $cfg->getNested("code.timeout", 15);
             $tag = $bot->getUsername()."#" . $bot->getDiscriminator();
-            $cmd = $cfg->getNested("discord.command", "/mclink");
+            /** @var string $cmd */
+            $cmd = $cfg->getNested("discord.link_command", "/mclink");
 
-            //TODO, libasynql here.
-
-            $this->getLogger()->debug("New code generated for {$sender->getName()} ({$sender->getUniqueID()->toString()}) - $code");
-            $sender->sendMessage("Your code is: ".TextFormat::RED . TextFormat::BOLD . $code . TextFormat::RESET.", it will expire in $time minutes.\nSend this message to $tag in the discord server.");
-            $sender->sendMessage(TextFormat::GOLD . TextFormat::ITALIC . "$cmd $code");
+            //Callbacks... :/
+            $this->database->executeInsert("minecraft.insert", ["uuid" => $sender->getUniqueId()->toString(), "username" => $sender->getName()], function(int $insertId) use ($code, $sender, $time, $tag, $cmd): void{
+                $this->getLogger()->debug("Minecraft user checked into database, id: $insertId");
+                $this->database->executeInsert("codes.insert", ["code" => $code, "uuid" => $sender->getUniqueId()->toString(), "expiry" => time() + ($time*60)], function() use($code, $sender, $time, $tag, $cmd): void{
+                    $this->getLogger()->debug("New code generated for {$sender->getName()} ({$sender->getUniqueId()->toString()}) - $code");
+                    $sender->sendMessage("Your code is: ".TextFormat::RED . TextFormat::BOLD . $code . TextFormat::RESET.", it will expire in $time minutes.\nSend this message to $tag in discord.");
+                    $sender->sendMessage(TextFormat::GOLD . TextFormat::ITALIC . "$cmd $code");
+                }, function(SqlError $error) use($sender): void{
+                    $this->getLogger()->error("Failed to generate code for {$sender->getName()} ({$sender->getUniqueId()->toString()}): " . $error->getMessage());
+                    $sender->sendMessage("§cFailed to generate code, please try again later.\nIf this issue persists please contact a server administrator.");
+                });
+            }, function(SqlError $error) use($sender): void{
+                $this->getLogger()->error("Failed to check {$sender->getName()} ({$sender->getUniqueId()->toString()}) into database: " . $error->getMessage());
+                $sender->sendMessage("§cFailed to generate code, please try again later.\nIf this issue persists please contact a server administrator.");
+            });
         }
         return true;
     }
 
     public function getDiscord(): DiscordBot{
         return $this->discord;
+    }
+
+    public function getDatabase(): DataConnector{
+        return $this->database;
     }
 }

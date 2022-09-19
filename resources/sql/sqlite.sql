@@ -5,13 +5,22 @@
 CREATE TABLE IF NOT EXISTS minecraft(
     uuid BINARY(16) NOT NULL UNIQUE PRIMARY KEY,
     username VARCHAR(64) NOT NULL,
-    last_login DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    last_online DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 -- #    }
 -- #    { insert
 -- #      :uuid string
 -- #      :username string
-INSERT INTO minecraft(uuid, username) VALUES(:uuid, :username);
+INSERT OR IGNORE INTO minecraft(uuid, username) VALUES(:uuid, :username);
+-- #    }
+-- #    { update
+-- #      :uuid string
+-- #      :username string
+-- #      :last_online int
+UPDATE minecraft SET
+    last_online = :last_online,
+    username = :username
+    WHERE uuid = :uuid;
 -- #    }
 -- #}
 
@@ -26,7 +35,15 @@ CREATE TABLE IF NOT EXISTS links(
 -- #    { insert
 -- #      :dcid string
 -- #      :uuid string
-INSERT INTO links(dcid, uuid) VALUES(:dcid, :uuid);
+INSERT OR IGNORE INTO links(dcid, uuid) VALUES(:dcid, :uuid);
+-- #    }
+-- #    { delete_dcid
+-- #      :dcid string
+DELETE FROM links WHERE dcid = :dcid;
+-- #    }
+-- #    { delete_uuid
+-- #      :uuid string
+DELETE FROM links WHERE uuid = :uuid;
 -- #    }
 -- #}
 
@@ -41,7 +58,19 @@ CREATE TABLE IF NOT EXISTS codes(
 -- #    { insert
 -- #      :code string
 -- #      :uuid string
--- #      :expiry timestamp
-INSERT INTO codes(code, uuid, expiry) VALUES(:code, :uuid, :expiry);
+-- #      :expiry int
+INSERT OR REPLACE INTO codes(code, uuid, expiry) VALUES(:code, :uuid, :expiry);
+-- #    }
+-- #    { get
+-- #      :code string
+SELECT uuid, expiry FROM codes WHERE code = :code;
+-- #    }
+-- #    { delete
+-- #      :code string
+DELETE FROM codes WHERE code = :code;
+-- #    }
+-- #    { clean
+-- #      :now int
+DELETE FROM codes WHERE expiry < :now;
 -- #    }
 -- #}
