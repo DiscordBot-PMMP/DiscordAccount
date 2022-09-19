@@ -1,2 +1,2 @@
 # DiscordAccount
-A central plugin to authorise connections between Minecraft and Discord accounts.
+A central plugin to create connections between Minecraft and Discord accounts.

@@ -3,7 +3,7 @@ version: 1.0.0-dev
 author: JaxkDev
 main: JaxkDev\DiscordAccount\Main
 src-namespace-prefix: JaxkDev\DiscordAccount
-description: A central plugin to authorise connections between Minecraft and Discord accounts.
+description: A central plugin to create connections between Minecraft and Discord accounts.
 website: https://github.com/DiscordBot-PMMP/DiscordAccount
 
 api: 4.0.0

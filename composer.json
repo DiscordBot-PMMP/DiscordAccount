@@ -1,7 +1,7 @@
 {
     "name": "jaxkdev/discordaccount",
     "type": "library",
-    "description": "A central plugin to authorise connections between Minecraft and Discord accounts.",
+    "description": "A central plugin to create connections between Minecraft and Discord accounts.",
     "license": "OSL-3.0",
     "authors": [
         {
