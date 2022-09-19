@@ -109,6 +109,27 @@ final class DiscordListener implements Listener{
                     $this->plugin->getLogger()->error("Failed to check code: ".$error);
                 });
             }
+        }elseif(strtolower($command) === $this->plugin->getConfig()->getNested("discord.unlink_command", "/mcunlink")){
+            if($message->getServerId() !== null){
+                $author = explode(".", $message->getAuthorId()??"")[1];
+                $channel = $message->getChannelId();
+            }else{
+                $author = $message->getAuthorId()??"";
+                $channel = $author;
+            }
+            $reply = new Reply($channel, $message->getId());
+            $this->plugin->getDatabase()->executeChange("links.delete_dcid", ["dcid" => $author], function(int $changed) use($reply){
+                $reply->setContent($changed === 0 ? "Your account has not been linked to a minecraft account.\nUse `/discordlink` in minecraft to link." : "Your account has been unlinked.");
+                $this->plugin->getDiscord()->getApi()->sendMessage($reply)->otherwise(function(ApiRejection $rejection){
+                    $this->plugin->getLogger()->error($rejection->getMessage());
+                });
+            }, function(SqlError $error) use($reply){
+                $reply->setContent("An error occurred while unlinking your account.");
+                $this->plugin->getDiscord()->getApi()->sendMessage($reply)->otherwise(function(ApiRejection $rejection){
+                    $this->plugin->getLogger()->error($rejection->getMessage());
+                });
+                $this->plugin->getLogger()->error("Failed to unlink account: ".$error);
+            });
         }
     }
 }

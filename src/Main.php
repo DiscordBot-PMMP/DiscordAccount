@@ -52,7 +52,9 @@ class Main extends PluginBase{
         }
         $this->getServer()->getPluginManager()->registerEvents(new DiscordListener($this), $this);
         $this->getScheduler()->scheduleRepeatingTask(new ClosureTask(function(): void{
-            $this->database->executeGeneric("codes.clean", ["now" => time()], function(){}, function(SqlError $error){
+            $this->database->executeChange("codes.clean", ["now" => time()], function(int $deleted): void{
+                $this->getLogger()->debug("Cleaned $deleted expired codes.");
+            }, function(SqlError $error){
                 $this->getLogger()->error("Failed to clean codes table - " . $error->getMessage());
             });
         }), 72000 * 6); //Every 6 hours just to keep the table clean for larger servers.
