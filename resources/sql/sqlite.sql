@@ -45,6 +45,18 @@ DELETE FROM links WHERE dcid = :dcid;
 -- #      :uuid string
 DELETE FROM links WHERE uuid = :uuid;
 -- #    }
+-- #    { get_uuid
+-- #      :uuid string
+SELECT dcid FROM links WHERE uuid = :uuid;
+-- #    }
+-- #    { get_username
+-- #      :username string
+SELECT links.dcid FROM links INNER JOIN minecraft on links.uuid = minecraft.uuid WHERE minecraft.username = :username;
+-- #    }
+-- #    { get_dcid
+-- #      :dcid string
+SELECT minecraft.username, minecraft.uuid FROM links INNER JOIN minecraft on minecraft.uuid = links.uuid WHERE links.dcid = :dcid;
+-- #    }
 -- #}
 
 -- #{ codes

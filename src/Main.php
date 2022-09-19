@@ -199,11 +199,52 @@ class Main extends PluginBase{
         return true;
     }
 
+    //---- API ----
+
     public function getDiscord(): DiscordBot{
         return $this->discord;
     }
 
     public function getDatabase(): DataConnector{
         return $this->database;
+    }
+
+    /**
+     * @param string $minecraft_username
+     * @param callable $callback function(?string $discord_userid): void{}
+     * @return void
+     */
+    public function getDiscordByName(string $minecraft_username, Callable $callback): void{
+        $this->database->executeSelect("links.get_username", ["username" => strtolower($minecraft_username)], function(array $rows) use($callback): void{
+            $callback($rows[0]["dcid"]??null);
+        }, function(SqlError $error) use($minecraft_username): void{
+            $this->getLogger()->error("Failed to get discord id for $minecraft_username: " . $error->getMessage());
+        });
+    }
+
+    /**
+     * @param string $minecraft_uuid UUID in string format
+     * @param callable $callback function(?string $discord_userid): void{}
+     * @return void
+     */
+    public function getDiscordByUuid(string $minecraft_uuid, Callable $callback): void{
+        $this->database->executeSelect("links.get_uuid", ["uuid" => $minecraft_uuid], function(array $rows) use ($callback): void{
+            $callback($rows[0]["dcid"]??null);
+        }, function(SqlError $error) use ($minecraft_uuid): void{
+            $this->getLogger()->error("Failed to get discord id for $minecraft_uuid: ".$error->getMessage());
+        });
+    }
+
+    /**
+     * @param string $dcid Discord USER_ID
+     * @param callable $callback function(?string $minecraft_username, ?string $minecraft_uuid): void{}
+     * @return void
+     */
+    public function getMinecraftByDcid(string $dcid, Callable $callback): void{
+        $this->database->executeSelect("links.get_dcid", ["dcid" => $dcid], function(array $rows) use($callback): void{
+            $callback($rows[0]["uuid"]??null, $rows[0]["username"]??null);
+        }, function(SqlError $error) use($dcid): void{
+            $this->getLogger()->error("Failed to get minecraft data for $dcid: " . $error->getMessage());
+        });
     }
 }
