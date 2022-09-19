@@ -1,4 +1,4 @@
--- #! sqlite
+-- #! mysql
 
 -- #{ minecraft
 -- #    { init
@@ -10,12 +10,11 @@ CREATE TABLE IF NOT EXISTS minecraft(
 -- #    { insert
 -- #      :uuid string
 -- #      :username string
-INSERT OR IGNORE INTO minecraft(uuid, username) VALUES(:uuid, :username);
+INSERT IGNORE INTO minecraft(uuid, username) VALUES(:uuid, :username);
 -- #    }
 -- #    { update
 -- #      :uuid string
 -- #      :username string
--- #      :last_online int
 UPDATE minecraft SET username = :username WHERE uuid = :uuid;
 -- #    }
 -- #}
@@ -25,13 +24,13 @@ UPDATE minecraft SET username = :username WHERE uuid = :uuid;
 CREATE TABLE IF NOT EXISTS links(
     dcid VARCHAR(20) NOT NULL UNIQUE PRIMARY KEY,
     uuid VARCHAR(36) NOT NULL UNIQUE REFERENCES minecraft(uuid) ON DELETE CASCADE,
-    created_on DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 -- #    }
 -- #    { insert
 -- #      :dcid string
 -- #      :uuid string
-INSERT OR IGNORE INTO links(dcid, uuid) VALUES(:dcid, :uuid);
+INSERT IGNORE INTO links(dcid, uuid) VALUES(:dcid, :uuid);
 -- #    }
 -- #    { delete_dcid
 -- #      :dcid string
@@ -60,14 +59,14 @@ SELECT minecraft.username, minecraft.uuid FROM links INNER JOIN minecraft on min
 CREATE TABLE IF NOT EXISTS codes(
     code VARCHAR(16) NOT NULL UNIQUE PRIMARY KEY,
     uuid VARCHAR(36) NOT NULL UNIQUE REFERENCES minecraft(uuid) ON DELETE CASCADE,
-    expiry DATETIME NOT NULL
+    expiry TIMESTAMP NOT NULL
 );
 -- #    }
 -- #    { insert
 -- #      :code string
 -- #      :uuid string
--- #      :expiry int
-INSERT OR REPLACE INTO codes(code, uuid, expiry) VALUES(:code, :uuid, :expiry);
+-- #      :expiry timestamp
+REPLACE INTO codes(code, uuid, expiry) VALUES(:code, :uuid, :expiry);
 -- #    }
 -- #    { get
 -- #      :code string
@@ -78,7 +77,7 @@ SELECT uuid, expiry FROM codes WHERE code = :code;
 DELETE FROM codes WHERE code = :code;
 -- #    }
 -- #    { clean
--- #      :now int
+-- #      :now timestamp
 DELETE FROM codes WHERE expiry < :now;
 -- #    }
 -- #}
