@@ -15,7 +15,6 @@ INSERT OR IGNORE INTO minecraft(uuid, username) VALUES(:uuid, :username);
 -- #    { update
 -- #      :uuid string
 -- #      :username string
--- #      :last_online int
 UPDATE minecraft SET username = :username WHERE uuid = :uuid;
 -- #    }
 -- #}
