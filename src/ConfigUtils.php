@@ -32,7 +32,67 @@ final class ConfigUtils{
      * @return string[]
      */
     static public function verify(array $config): array{
-        //TODO.
-        return [];
+        $result = [];
+
+        if(!array_key_exists("version", $config) or $config["version"] === null){
+            $result[] = "No 'version' field found.";
+        }else{
+            if(!is_int($config["version"]) or $config["version"] <= 0 or $config["version"] > self::VERSION){
+                $result[] = "Invalid 'version' ({$config["version"]}), you were warned not to touch it...";
+            }
+        }
+
+        if(!array_key_exists("discord", $config) or $config["discord"] === null){
+            $result[] = "No 'discord' field found.";
+        }else{
+            if(!array_key_exists("link_command", $config["discord"]) or $config["discord"]["link_command"] === null){
+                $result[] = "No 'discord.link_command' field found.";
+            }else{
+                //Check for a unique prefix? (not a-Z)
+                if(!is_string($config["discord"]["link_command"]) or strlen($config["discord"]["link_command"]) < 3){
+                    $result[] = "Invalid 'discord.link_command' ({$config["discord"]["link_command"]}).";
+                }
+            }
+            if(!array_key_exists("unlink_command", $config["discord"]) or $config["discord"]["unlink_command"] === null){
+                $result[] = "No 'discord.unlink_command' field found.";
+            }else{
+                //Check for a unique prefix? (not a-Z)
+                if(!is_string($config["discord"]["unlink_command"]) or strlen($config["discord"]["unlink_command"]) < 3){
+                    $result[] = "Invalid 'discord.unlink_command' ({$config["discord"]["unlink_command"]}).";
+                }
+            }
+        }
+
+        if(!array_key_exists("code", $config) or $config["code"] === null){
+            $result[] = "No 'code' field found.";
+        }else{
+            if(!array_key_exists("characters", $config["code"]) or $config["code"]["characters"] === null){
+                $result[] = "No 'code.characters' field found.";
+            }else{
+                if(!is_string($config["code"]["characters"]) or strlen($config["code"]["characters"]) <= 10){
+                    $result[] = "Invalid 'code.characters' ({$config["code"]["characters"]}), should be > 10 characters.";
+                }
+            }
+
+            if(!array_key_exists("size", $config["code"]) or $config["code"]["size"] === null){
+                $result[] = "No 'code.size' field found.";
+            }else{
+                if(!is_int($config["code"]["size"]) or $config["code"]["size"] < 4 or $config["code"]["size"] > 16){
+                    $result[] = "Invalid 'code.size' ({$config["code"]["size"]}), minimum 4 and maximum 16.";
+                }
+            }
+
+            if(!array_key_exists("timeout", $config["code"]) or $config["code"]["timeout"] === null){
+                $result[] = "No 'code.timeout' field found.";
+            }else{
+                if(!is_int($config["code"]["timeout"]) or $config["code"]["timeout"] < 1 or $config["code"]["timeout"] > 1440){
+                    $result[] = "Invalid 'code.timeout' ({$config["code"]["timeout"]}), minimum 1 and maximum 1440.";
+                }
+            }
+        }
+
+        //Leave database section as libasynql will use/verify it not us.
+
+        return $result;
     }
 }
