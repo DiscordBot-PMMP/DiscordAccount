@@ -58,7 +58,7 @@ final class DiscordListener implements Listener{
                 }
                 if(sizeof($args) !== 1){
                     //Invalid usage.
-                    $reply->setContent("Usage: `$command <code>`");
+                    $reply->setContent("Usage: `$command <code>`, where `<code>` is the code you received in-game via `/discordlink`.");
                     //$this->plugin->getDiscord()->getApi()->addReaction($message->getAuthorId(), $message->getId(), "❌"); https://github.com/DiscordBot-PMMP/DiscordBot/issues/73
                     $this->plugin->getDiscord()->getApi()->sendMessage($reply)->otherwise(function(ApiRejection $rejection){
                         $this->plugin->getLogger()->error($rejection->getMessage());
