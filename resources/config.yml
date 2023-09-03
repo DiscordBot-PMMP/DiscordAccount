@@ -1,8 +1,7 @@
-version: 1
+version: 2
 
 discord:
-  link_command: "/mclink"
-  unlink_command: "/mcunlink"
+  command: "/mclink"
 
 code:
   # The possible characters in the unique code, suggested to remove visually similar characters.

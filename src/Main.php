@@ -13,7 +13,6 @@
 namespace JaxkDev\DiscordAccount;
 
 use JaxkDev\DiscordBot\Plugin\Main as DiscordBot;
-use JaxkDev\DiscordBot\Plugin\Storage;
 use Phar;
 use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
@@ -38,7 +37,7 @@ class Main extends PluginBase{
     }
 
     public function onEnable(): void{
-        if($this->getServer()->getPluginManager()->getPlugin("DiscordBot")?->isEnabled() !== true){
+        if($this->discord->isEnabled() !== true){
             $this->disable("DiscordBot is not enabled! Dependency must be enabled for this plugin to operate.");
         }
         $this->database = libasynql::create($this, $this->getConfig()->get("database"), [
@@ -46,8 +45,8 @@ class Main extends PluginBase{
             "mysql" => "sql/mysql.sql"
         ]);
         foreach(["minecraft.init", "links.init", "codes.init"] as $stmt){
-            $this->database->executeGeneric($stmt, [], null, function(SqlError $error) use($stmt){
-                $this->disable("Failed to execute sql statement ($stmt) - " . $error->getMessage());
+            $this->database->executeGeneric($stmt, [], null, function(SqlError $error) use($stmt): void{
+                $this->disable("Failed to execute sql statement ($stmt) - " . $error->getErrorMessage());
             });
         }
         $this->getServer()->getPluginManager()->registerEvents(new DiscordListener($this), $this);
@@ -55,7 +54,7 @@ class Main extends PluginBase{
             $this->database->executeChange("codes.clean", ["now" => time()], function(int $deleted): void{
                 $this->getLogger()->debug("Cleaned $deleted expired codes.");
             }, function(SqlError $error){
-                $this->getLogger()->error("Failed to clean codes table - " . $error->getMessage());
+                $this->getLogger()->error("Failed to clean codes table - " . $error->getErrorMessage());
             });
         }), 72000 * 6); //Every 6 hours just to keep the table clean for larger servers.
     }
@@ -81,14 +80,15 @@ class Main extends PluginBase{
         //Dependencies
         $discordBot = $this->getServer()->getPluginManager()->getPlugin("DiscordBot");
         if($discordBot === null){
-            return; //Will never happen.
+            $this->disable("DiscordBot dependency not found."); //Will never happen.
         }
         if($discordBot->getDescription()->getWebsite() !== "https://github.com/DiscordBot-PMMP/DiscordBot"){
             $this->disable("Incompatible dependency 'DiscordBot' detected, see https://github.com/DiscordBot-PMMP/DiscordBot/releases for the correct plugin.");
         }
         $ver = new VersionString($discordBot->getDescription()->getVersion());
-        if($ver->getMajor() !== 2){
-            $this->disable("Incompatible dependency 'DiscordBot' detected, v2.x.y is required however v{$ver->getFullVersion(true)}) is installed, see https://github.com/DiscordBot-PMMP/DiscordBot/releases for downloads.");
+
+        if(version_compare($ver->getFullVersion(), "3.0.2") === -1){
+            $this->disable("Incompatible dependency 'DiscordBot' detected, v3.0.2 or higher is required however v{$ver->getFullVersion(true)}) is installed, see https://github.com/DiscordBot-PMMP/DiscordBot/releases for downloads.");
         }
         if($ver->getSuffix() !== ""){
             $this->disable("Incompatible dependency 'DiscordBot' detected, A stable release is required however v{$ver->getFullVersion(true)}) is installed, see https://github.com/DiscordBot-PMMP/DiscordBot/releases for stable downloads.");
@@ -138,8 +138,8 @@ class Main extends PluginBase{
      * @return never-returns
      */
     private function disable(string $message): void{
-        $this->getLogger()->critical($message);
-        throw new DisablePluginException($message); //message isn't always shown to user(enable/load forgot which) so send critical message.
+        $this->getLogger()->critical($message); //message isn't always shown to user on enable so send critical message.
+        throw new DisablePluginException($message);
     }
 
     public function onCommand(CommandSender $sender, Command $command, string $label, array $args): bool{
@@ -148,14 +148,14 @@ class Main extends PluginBase{
                 $sender->sendMessage(TextFormat::RED . "This command can only be used in-game as a player.");
                 return true;
             }
-            if(($bot = Storage::getBotUser()) === null){
+            if(!$this->getDiscord()->getApi()->isReady()){
                 //Shouldn't really happen as time for player to join is same if not longer than discord start times, but just in case.
                 $sender->sendMessage(TextFormat::RED . "Discord is not ready yet, please try again.\nIf this issue persists please contact a server administrator.");
                 return true;
             }
 
             //Callbacks... :/
-            $this->database->executeSelect("links.get_uuid", ["uuid" => $sender->getUniqueId()->toString()], function(array $rows) use ($sender, $bot): void{
+            $this->database->executeSelect("links.get_uuid", ["uuid" => $sender->getUniqueId()->toString()], function(array $rows) use ($sender): void{
                 if(sizeof($rows) !== 0){
                     $sender->sendMessage(TextFormat::RED . "You are already linked to the discord account " . TextFormat::BOLD . TextFormat::GOLD . $rows[0]["dcid"] . TextFormat::RESET . TextFormat::RED . "\nUse /discordunlink to unlink from this discord account.");
                     return;
@@ -168,22 +168,20 @@ class Main extends PluginBase{
                 $code = Utils::generateCode($length, $chars);
                 /** @var int $time */
                 $time = $cfg->getNested("code.timeout", 15);
-                $tag = $bot->getUsername()."#".$bot->getDiscriminator();
                 /** @var string $cmd */
-                $cmd = $cfg->getNested("discord.link_command", "/mclink");
+                $cmd = $cfg->getNested("discord.command", "/mclink");
 
-                $this->database->executeInsert("minecraft.insert", ["uuid" => $sender->getUniqueId()->toString(), "username" => strtolower($sender->getName())], function(int $insertId) use ($code, $sender, $time, $tag, $cmd): void{
+                $this->database->executeInsert("minecraft.insert", ["uuid" => $sender->getUniqueId()->toString(), "username" => strtolower($sender->getName())], function(int $insertId) use ($code, $sender, $time, $cmd): void{
                     $this->getLogger()->debug("Minecraft user checked into database, id: $insertId");
-                    $this->database->executeInsert("codes.insert", ["code" => $code, "uuid" => $sender->getUniqueId()->toString(), "expiry" => time() + ($time * 60)], function() use ($code, $sender, $time, $tag, $cmd): void{
+                    $this->database->executeInsert("codes.insert", ["code" => $code, "uuid" => $sender->getUniqueId()->toString(), "expiry" => time() + ($time * 60)], function() use ($code, $sender, $time, $cmd): void{
                         $this->getLogger()->debug("New code generated for {$sender->getName()} ({$sender->getUniqueId()->toString()}) - $code");
-                        $sender->sendMessage("Your code is: ".TextFormat::RED.TextFormat::BOLD.$code.TextFormat::RESET.", it will expire in $time minutes.\nSend this message to $tag in discord.");
-                        $sender->sendMessage(TextFormat::GOLD.TextFormat::ITALIC."$cmd $code");
+                        $sender->sendMessage("Your code is: ".TextFormat::RED.TextFormat::BOLD.$code.TextFormat::RESET.", it will expire in $time minutes.\nSend `$cmd` in a discord channel to link account.");
                     }, function(SqlError $error) use ($sender): void{
-                        $this->getLogger()->error("Failed to generate code for {$sender->getName()} ({$sender->getUniqueId()->toString()}): ".$error->getMessage());
+                        $this->getLogger()->error("Failed to generate code for {$sender->getName()} ({$sender->getUniqueId()->toString()}): " . $error->getErrorMessage());
                         $sender->sendMessage(TextFormat::RED . "Failed to generate code, please try again later.\nIf this issue persists please contact a server administrator.");
                     });
                 }, function(SqlError $error) use ($sender): void{
-                    $this->getLogger()->error("Failed to check {$sender->getName()} ({$sender->getUniqueId()->toString()}) into database: ".$error->getMessage());
+                    $this->getLogger()->error("Failed to check {$sender->getName()} ({$sender->getUniqueId()->toString()}) into database: " . $error->getErrorMessage());
                     $sender->sendMessage(TextFormat::RED . "Failed to generate code, please try again later.\nIf this issue persists please contact a server administrator.");
                 });
             });

@@ -12,8 +12,23 @@
 
 namespace JaxkDev\DiscordAccount;
 
-use JaxkDev\DiscordBot\Models\Messages\Reply;
+use JaxkDev\DiscordBot\Models\Emoji;
+use JaxkDev\DiscordBot\Models\Interactions\Interaction;
+use JaxkDev\DiscordBot\Models\Interactions\InteractionType;
+use JaxkDev\DiscordBot\Models\Interactions\MessageComponentData;
+use JaxkDev\DiscordBot\Models\Interactions\ModalSubmitData;
+use JaxkDev\DiscordBot\Models\Messages\Component\ActionRow;
+use JaxkDev\DiscordBot\Models\Messages\Component\Button;
+use JaxkDev\DiscordBot\Models\Messages\Component\ButtonStyle;
+use JaxkDev\DiscordBot\Models\Messages\Component\TextInput;
+use JaxkDev\DiscordBot\Models\Messages\Component\TextInputStyle;
+use JaxkDev\DiscordBot\Models\Messages\Embed\Embed;
+use JaxkDev\DiscordBot\Models\Messages\Embed\Field;
+use JaxkDev\DiscordBot\Models\Messages\Embed\Footer;
+use JaxkDev\DiscordBot\Models\Messages\MessageType;
+use JaxkDev\DiscordBot\Plugin\Api;
 use JaxkDev\DiscordBot\Plugin\ApiRejection;
+use JaxkDev\DiscordBot\Plugin\Events\InteractionReceived;
 use JaxkDev\DiscordBot\Plugin\Events\MessageSent;
 use pocketmine\event\Listener;
 use poggit\libasynql\SqlError;
@@ -21,20 +36,45 @@ use poggit\libasynql\SqlError;
 final class DiscordListener implements Listener{
 
     private Main $plugin;
+    private Api $api;
 
     public function __construct(Main $plugin){
         $this->plugin = $plugin;
+        $this->api = $this->plugin->getDiscord()->getApi();
     }
+
+    //TODO commands once added to DiscordBot
 
     public function onDiscordMessage(MessageSent $event): void{
         $message = $event->getMessage();
+        if($message->getAuthorId() === null || $message->getContent() === null || $message->getType() !== MessageType::DEFAULT){
+            return;
+        }
         $args = explode(" ", $message->getContent());
         $command = array_shift($args);
-        if(strtolower($command) === $this->plugin->getConfig()->getNested("discord.link_command", "/mclink")){
-            $reply = new Reply($message->getChannelId(), $message->getId());
-            if($message->getServerId() !== null){
+        if(strtolower($command) === $this->plugin->getConfig()->getNested("discord.command", "/mclink")){
+            $this->plugin->getDatabase()->executeSelect("links.get_dcid", ["dcid" => $message->getAuthorId()], function(array $rows) use ($message){
+                if(sizeof($rows) !== 0){
+                    $username = $rows[0]["username"];
+                    $uuid = $rows[0]["uuid"];
+                    $timestamp = (new \DateTime($rows[0]["created_on"]))->getTimestamp();
+                    $this->sendMainMenu($message->getChannelId(), $message->getId(), $username, $uuid, $timestamp);
+                }else{
+                    $this->sendMainMenu($message->getChannelId(), $message->getId());
+                }
+            }, function(SqlError $error) use ($message){
+                $this->plugin->getLogger()->error("Failed to check dc account link status: " . $error->getErrorMessage());
+                $this->sendMainMenu($message->getChannelId(), $message->getId());
+            });
+        }
+
+
+
+        /*
+            $reply = Message::class($message->getChannelId(), $message->getId());
+            if($message->getAuthorId() === $message->getChannelId()){
                 $reply->setContent("The `$command` command can only be run in my DM's.");
-                $this->plugin->getDiscord()->getApi()->addReaction($message->getChannelId(), $message->getId()??"Never Null", "❌")->otherwise(function(ApiRejection $rejection){
+                $this->plugin->getDiscord()->getApi()->addReaction($message->get$message->getChannelId(), $message->getId()??"Never Null", "❌")->otherwise(function(ApiRejection $rejection){
                     $this->plugin->getLogger()->error($rejection->getMessage());
                 });
                 $this->plugin->getDiscord()->getApi()->sendMessage($reply)->otherwise(function(ApiRejection $rejection){
@@ -155,6 +195,95 @@ final class DiscordListener implements Listener{
                 });
                 $this->plugin->getLogger()->error("Failed to unlink account: ".$error);
             });
+        }*/
+    }
+
+    public function onInteraction(InteractionReceived $event): void{
+        $interaction = $event->getInteraction();
+        if($interaction->getType() === InteractionType::MESSAGE_COMPONENT){
+            /** @var MessageComponentData $data */
+            $data = $interaction->getData();
+            switch($data->getCustomId()){
+                case "discordaccount_link":
+                    $this->linkAccountInitial($interaction);
+                    break;
+                case "discordaccount_unlink":
+                    $this->unlinkAccount($interaction);
+                    break;
+            }
+        }elseif($interaction->getType() === InteractionType::MODAL_SUBMIT){
+            /** @var ModalSubmitData $data */
+            $data = $interaction->getData();
+            if($data->getCustomId() === "discordaccount_link_code"){
+                $this->linkAccountCode($interaction);
+            }
         }
+    }
+
+    protected function linkAccountCode(Interaction $interaction): void{
+        /** @var TextInput|null $data */
+        $data = $interaction->getData()->getComponents()[0] ?? null;
+        if((!$data instanceof TextInput) || $data->getCustomId() !== "discordaccount_code" || $data->getValue() === null){
+            $this->plugin->getLogger()->error("Invalid link code interaction data.");
+            return;
+        }
+        $code = $data->getValue();
+        var_dump($code);
+        //TODO Link.
+        $this->api->interactionRespondWithMessage($interaction, null, [
+            new Embed("✅ Linked Account", null, null, time(), null, new Footer("DiscordAccount v" . $this->plugin->getDescription()->getVersion())),
+        ], null, null, null, true)->otherwise(function(ApiRejection $rejection){
+            $this->plugin->getLogger()->error("Failed to send link response: " . $rejection->getMessage());
+        });
+    }
+
+    protected function linkAccountInitial(Interaction $interaction): void{
+        //Send popup text input to enter code privately.
+        $this->api->interactionRespondWithModal($interaction, "Link Minecraft Account", "discordaccount_link_code", [
+            new ActionRow([
+                new TextInput("discordaccount_code", TextInputStyle::SHORT, "Code", $this->plugin->getConfig()->getNested("code.size", 4), $this->plugin->getConfig()->getNested("code.size", 16), true, null, "Unique link code from minecraft")
+            ])
+        ])->otherwise(function(ApiRejection $rejection){
+            $this->plugin->getLogger()->error("Failed to send link response: " . $rejection->getMessage());
+        });
+    }
+
+    protected function unlinkAccount(Interaction $interaction): void{
+        //TODO Unlink.
+        $this->api->interactionRespondWithMessage($interaction, null, [
+            new Embed("✅ Unlinked Account", null, null, time(), null, new Footer("DiscordAccount v" . $this->plugin->getDescription()->getVersion())),
+        ], null, null, null, true)->otherwise(function(ApiRejection $rejection){
+            $this->plugin->getLogger()->error("Failed to send unlink response: " . $rejection->getMessage());
+        });
+    }
+
+    protected function sendMainMenu(string $channel_id, string $reference_id, ?string $username = null, ?string $uuid = null, ?int $timestamp = null): void{
+        $this->api->sendMessage(null, $channel_id, null, $reference_id, [
+            new Embed(
+                "Minecraft Account",
+                $username === null ? "You are not linked to a Minecraft account." : "Linked Minecraft account details:",
+                null,
+                time(),
+                null,
+                new Footer("DiscordAccount v" . $this->plugin->getDescription()->getVersion()),
+                null, //new Image("https://vignette.wikia.nocookie.net/minecraft/images/3/3b/MinecraftApp.png"),
+                null,
+                null,
+                null,
+                null, //new Author("Minecraft Account", null, "https://vignette.wikia.nocookie.net/minecraft/images/3/3b/MinecraftApp.png"),
+                $username === null ? [] : [
+                    new Field("Username", $username, true),
+                    new Field("UUID", $uuid, true),
+                    new Field("Linked On", date("d/m/Y H:i:s", $timestamp), false),
+                ]
+            )
+        ], null, [
+            new ActionRow([
+                new Button(ButtonStyle::SUCCESS, "Link", Emoji::fromUnicode("🔗"), "discordaccount_link", null, $username !== null),
+                new Button(ButtonStyle::DANGER, "Unlink", Emoji::fromUnicode("📵"), "discordaccount_unlink", null, $username === null)
+            ])
+        ])->otherwise(function(ApiRejection $rejection){
+            $this->plugin->getLogger()->error("Failed to send command response: " . $rejection->getMessage());
+        });
     }
 }

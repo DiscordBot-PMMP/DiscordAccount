@@ -50,7 +50,7 @@ SELECT links.dcid FROM links INNER JOIN minecraft on links.uuid = minecraft.uuid
 -- #    }
 -- #    { get_dcid
 -- #      :dcid string
-SELECT minecraft.username, minecraft.uuid FROM links INNER JOIN minecraft on minecraft.uuid = links.uuid WHERE links.dcid = :dcid;
+SELECT minecraft.username, minecraft.uuid, links.created_on FROM links INNER JOIN minecraft on minecraft.uuid = links.uuid WHERE links.dcid = :dcid;
 -- #    }
 -- #}
 

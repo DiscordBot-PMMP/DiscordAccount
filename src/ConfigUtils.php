@@ -14,16 +14,32 @@ namespace JaxkDev\DiscordAccount;
 
 final class ConfigUtils{
 
-    const VERSION = 1;
+    const VERSION = 2;
 
     // Map all versions to a static function.
-    private const _PATCH_MAP = [];
+    private const _PATCH_MAP = [
+        1 => "patch_1",
+    ];
 
     static public function update(array &$config): void{
         for($i = (int)$config["version"]; $i < self::VERSION; $i += 1){
             /** @phpstan-ignore-next-line */
             $config = forward_static_call([self::class, self::_PATCH_MAP[$i]], $config);
         }
+    }
+
+    static public function patch_1(array $config): array{
+        $config["version"] = 2;
+        if(!isset($config["discord"])){
+            $config["discord"] = [
+                "command" => "/mclink",
+            ];
+        }
+        if(!isset($config["discord"]["command"])){
+            $config["discord"]["command"] = $config["discord"]["link_command"] ?? "/mclink";
+        }
+        unset($config["discord"]["link_command"], $config["discord"]["unlink_command"]);
+        return $config;
     }
 
     /**
@@ -45,20 +61,12 @@ final class ConfigUtils{
         if(!array_key_exists("discord", $config) or $config["discord"] === null){
             $result[] = "No 'discord' field found.";
         }else{
-            if(!array_key_exists("link_command", $config["discord"]) or $config["discord"]["link_command"] === null){
-                $result[] = "No 'discord.link_command' field found.";
+            if(!array_key_exists("command", $config["discord"]) or $config["discord"]["command"] === null){
+                $result[] = "No 'discord.command' field found.";
             }else{
                 //Check for a unique prefix? (not a-Z)
-                if(!is_string($config["discord"]["link_command"]) or strlen($config["discord"]["link_command"]) < 3){
-                    $result[] = "Invalid 'discord.link_command' ({$config["discord"]["link_command"]}).";
-                }
-            }
-            if(!array_key_exists("unlink_command", $config["discord"]) or $config["discord"]["unlink_command"] === null){
-                $result[] = "No 'discord.unlink_command' field found.";
-            }else{
-                //Check for a unique prefix? (not a-Z)
-                if(!is_string($config["discord"]["unlink_command"]) or strlen($config["discord"]["unlink_command"]) < 3){
-                    $result[] = "Invalid 'discord.unlink_command' ({$config["discord"]["unlink_command"]}).";
+                if(!is_string($config["discord"]["command"]) or strlen($config["discord"]["command"]) < 3){
+                    $result[] = "Invalid 'discord.command' ({$config["discord"]["command"]}).";
                 }
             }
         }
