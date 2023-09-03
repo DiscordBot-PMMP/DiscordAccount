@@ -6,6 +6,6 @@ parameters:
     paths:
         - src
     excludePaths:
-            analyse:
-                - vendor
+        analyse:
+            - vendor
     checkMissingIterableValueType: false

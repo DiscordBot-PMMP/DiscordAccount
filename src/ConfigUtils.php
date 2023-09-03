@@ -23,7 +23,6 @@ final class ConfigUtils{
 
     static public function update(array &$config): void{
         for($i = (int)$config["version"]; $i < self::VERSION; $i += 1){
-            /** @phpstan-ignore-next-line */
             $config = forward_static_call([self::class, self::_PATCH_MAP[$i]], $config);
         }
     }

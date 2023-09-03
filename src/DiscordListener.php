@@ -13,8 +13,11 @@
 namespace JaxkDev\DiscordAccount;
 
 use JaxkDev\DiscordBot\Models\Emoji;
+use JaxkDev\DiscordBot\Models\Interactions\ApplicationCommandData;
 use JaxkDev\DiscordBot\Models\Interactions\Interaction;
 use JaxkDev\DiscordBot\Models\Interactions\InteractionType;
+use JaxkDev\DiscordBot\Models\Interactions\MessageComponentData;
+use JaxkDev\DiscordBot\Models\Interactions\ModalSubmitData;
 use JaxkDev\DiscordBot\Models\Messages\Component\ActionRow;
 use JaxkDev\DiscordBot\Models\Messages\Component\Button;
 use JaxkDev\DiscordBot\Models\Messages\Component\ButtonStyle;
@@ -137,8 +140,11 @@ final class DiscordListener implements Listener{
 
     public function onInteraction(InteractionReceived $event): void{
         $interaction = $event->getInteraction();
-        $id = $interaction->getData()->getCustomId();
-        if(!str_starts_with($id, "discordaccount")){
+        if($interaction->getData() instanceof ApplicationCommandData){
+            //todo commands.
+            return;
+        }
+        if($interaction->getData() === null || !str_starts_with(($id = $interaction->getData()->getCustomId()), "discordaccount")){
             //Nothing to do with our plugin.
             return;
         }
@@ -164,6 +170,10 @@ final class DiscordListener implements Listener{
     }
 
     protected function linkAccountCode(Interaction $interaction): void{
+        if(!$interaction->getData() instanceof ModalSubmitData){
+            $this->plugin->getLogger()->error("Invalid link code interaction data.");
+            return;
+        }
         /** @var TextInput|null $data */
         $data = $interaction->getData()->getComponents()[0] ?? null;
         if((!$data instanceof TextInput) || $data->getCustomId() !== "discordaccount_code" || $data->getValue() === null){
@@ -198,11 +208,13 @@ final class DiscordListener implements Listener{
                     $this->plugin->getDatabase()->executeInsert("links.insert", ["dcid" => $interaction->getUserId()??"§", "uuid" => $rows[0]["uuid"]], function() use ($code, $interaction){
                         $this->plugin->getDatabase()->executeSelect("links.get_dcid", ["dcid" => $interaction->getUserId()??"§"], function(array $rows) use ($interaction){
                             $this->api->interactionRespondWithMessage($interaction, null, [
-                                new Embed("✅ Linked Account", null, null, time(), null, new Footer("DiscordAccount v" . $this->plugin->getDescription()->getVersion())),
+                                new Embed("✅ Linked Account", $interaction->getMessage() === null ? "(_Failed to update main menu with details_)" : null, null, time(), null, new Footer("DiscordAccount v" . $this->plugin->getDescription()->getVersion())),
                             ], null, null, null, true)->otherwise(function(ApiRejection $rejection){
                                 $this->plugin->getLogger()->error("Failed to send final link success response: " . $rejection->getMessage());
                             });
-                            $this->updateMainMenu($interaction->getMessage(), $interaction->getUserId(), $rows[0]["username"], $rows[0]["uuid"], (new \DateTime($rows[0]["created_on"]))->getTimestamp());
+                            if($interaction->getMessage() !== null && $interaction->getUserId() !== null){
+                                $this->updateMainMenu($interaction->getMessage(), $interaction->getUserId(), $rows[0]["username"], $rows[0]["uuid"], (new \DateTime($rows[0]["created_on"]))->getTimestamp());
+                            }
                         }, function(SqlError $error) use($interaction){
                             $this->plugin->getLogger()->error("Failed to get linked account details, but still linked.");
                             $this->plugin->getLogger()->error($error->getMessage());
@@ -241,12 +253,16 @@ final class DiscordListener implements Listener{
                 $this->api->interactionRespondWithMessage($interaction, "You are already linked to a Minecraft account `".$rows[0]["username"]." (".$rows[0]["uuid"].")`.\nUse the unlink button to remove this Minecraft account.")->otherwise(function(ApiRejection $rejection){
                     $this->plugin->getLogger()->error("Failed to send already linked response: " . $rejection->getMessage());
                 });
-                $this->updateMainMenu($interaction->getMessage(), $interaction->getUserId(), $rows[0]["username"], $rows[0]["uuid"], (new \DateTime($rows[0]["created_on"]))->getTimestamp());
+                if($interaction->getMessage() !== null && $interaction->getUserId() !== null){
+                    $this->updateMainMenu($interaction->getMessage(), $interaction->getUserId(), $rows[0]["username"], $rows[0]["uuid"], (new \DateTime($rows[0]["created_on"]))->getTimestamp());
+                }
             }else{
+                /** @var int $size */
+                $size = $this->plugin->getConfig()->getNested("code.size", 4);
                 //Send popup text input to enter code privately.
                 $this->api->interactionRespondWithModal($interaction, "Link Minecraft Account", "discordaccount_link_code", [
                     new ActionRow([
-                        new TextInput("discordaccount_code", TextInputStyle::SHORT, "Code", $this->plugin->getConfig()->getNested("code.size", 4), $this->plugin->getConfig()->getNested("code.size", 16), true, null, "Unique link code from minecraft")
+                        new TextInput("discordaccount_code", TextInputStyle::SHORT, "Code", $size, $size, true, null, "Unique link code from minecraft")
                     ])
                 ])->otherwise(function(ApiRejection $rejection){
                     $this->plugin->getLogger()->error("Failed to send initial link response: " . $rejection->getMessage());
@@ -302,7 +318,7 @@ final class DiscordListener implements Listener{
                 null,
                 null,
                 null, //new Author("Minecraft Account", null, "https://vignette.wikia.nocookie.net/minecraft/images/3/3b/MinecraftApp.png"),
-                $username === null ? [] : [
+                ($username === null || $uuid === null) ? [] : [
                     new Field("Username", $username, true),
                     new Field("UUID", $uuid, true),
                     new Field("Linked On", date("d/m/Y H:i:s", $timestamp), false),
@@ -328,7 +344,7 @@ final class DiscordListener implements Listener{
                 null,
                 null,
                 null, //new Author("Minecraft Account", null, "https://vignette.wikia.nocookie.net/minecraft/images/3/3b/MinecraftApp.png"),
-                $username === null ? [] : [
+                ($username === null || $uuid === null) ? [] : [
                     new Field("Username", $username, true),
                     new Field("UUID", $uuid, true),
                     new Field("Linked On", date("d/m/Y H:i:s", $timestamp), false),
