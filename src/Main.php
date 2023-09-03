@@ -247,7 +247,7 @@ class Main extends PluginBase{
      */
     public function getMinecraftByDcid(string $dcid, Callable $callback): void{
         $this->database->executeSelect("links.get_dcid", ["dcid" => $dcid], function(array $rows) use($callback): void{
-            $callback($rows[0]["uuid"]??null, $rows[0]["username"]??null);
+            $callback($rows[0]["username"]??null, $rows[0]["uuid"]??null);
         }, function(SqlError $error) use($dcid): void{
             $this->getLogger()->error("Failed to get minecraft data for $dcid: " . $error->getMessage());
         });
