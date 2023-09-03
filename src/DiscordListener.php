@@ -28,6 +28,7 @@ use JaxkDev\DiscordBot\Models\Messages\Embed\Footer;
 use JaxkDev\DiscordBot\Models\Messages\MessageType;
 use JaxkDev\DiscordBot\Plugin\Api;
 use JaxkDev\DiscordBot\Plugin\ApiRejection;
+use JaxkDev\DiscordBot\Plugin\Events\DiscordClosed;
 use JaxkDev\DiscordBot\Plugin\Events\InteractionReceived;
 use JaxkDev\DiscordBot\Plugin\Events\MessageSent;
 use pocketmine\event\Listener;
@@ -44,6 +45,11 @@ final class DiscordListener implements Listener{
     }
 
     //TODO commands once added to DiscordBot
+
+    public function onDiscordClosed(DiscordClosed $event): void{
+        $this->plugin->getLogger()->error("Discord closed, disabling plugin.");
+        $this->plugin->getServer()->getPluginManager()->disablePlugin($this->plugin);
+    }
 
     public function onDiscordMessage(MessageSent $event): void{
         $message = $event->getMessage();

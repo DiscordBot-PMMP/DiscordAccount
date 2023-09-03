@@ -85,10 +85,10 @@ class Main extends PluginBase{
         if($discordBot->getDescription()->getWebsite() !== "https://github.com/DiscordBot-PMMP/DiscordBot"){
             $this->disable("Incompatible dependency 'DiscordBot' detected, see https://github.com/DiscordBot-PMMP/DiscordBot/releases for the correct plugin.");
         }
-        $ver = new VersionString($discordBot->getDescription()->getVersion());
 
-        if(version_compare($ver->getFullVersion(), "3.0.2") === -1){
-            $this->disable("Incompatible dependency 'DiscordBot' detected, v3.0.2 or higher is required however v{$ver->getFullVersion(true)}) is installed, see https://github.com/DiscordBot-PMMP/DiscordBot/releases for downloads.");
+        $ver = new VersionString($discordBot->getDescription()->getVersion());
+        if($ver->getMajor() !== 3 or ($ver->getMinor() === 0 and $ver->getPatch() < 2)){
+            $this->disable("Incompatible dependency 'DiscordBot' detected, v3.0.2 or higher is required however v{$ver->getFullVersion(true)} is installed, see https://github.com/DiscordBot-PMMP/DiscordBot/releases for downloads.");
         }
         if($ver->getSuffix() !== ""){
             $this->disable("Incompatible dependency 'DiscordBot' detected, A stable release is required however v{$ver->getFullVersion(true)}) is installed, see https://github.com/DiscordBot-PMMP/DiscordBot/releases for stable downloads.");
