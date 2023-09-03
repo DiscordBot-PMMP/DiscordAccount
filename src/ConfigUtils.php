@@ -1,16 +1,22 @@
 <?php
+
 /*
  * DiscordAccount, PocketMine-MP Plugin.
  *
  * Licensed under the Open Software License version 3.0 (OSL-3.0)
  * Copyright (C) 2022-present JaxkDev
  *
- * Twitter :: @JaxkDev
- * Discord :: JaxkDev#2698
+ * Discord :: JaxkDev
  * Email   :: JaxkDev@gmail.com
  */
 
 namespace JaxkDev\DiscordAccount;
+
+use function array_key_exists;
+use function forward_static_call;
+use function is_int;
+use function is_string;
+use function strlen;
 
 final class ConfigUtils{
 
@@ -43,56 +49,55 @@ final class ConfigUtils{
 
     /**
      * Verifies the config's keys and values, returning any keys and a relevant message.
-     * @param array $config
      * @return string[]
      */
     static public function verify(array $config): array{
         $result = [];
 
-        if(!array_key_exists("version", $config) or $config["version"] === null){
+        if(!array_key_exists("version", $config) || $config["version"] === null){
             $result[] = "No 'version' field found.";
         }else{
-            if(!is_int($config["version"]) or $config["version"] <= 0 or $config["version"] > self::VERSION){
+            if(!is_int($config["version"]) || $config["version"] <= 0 || $config["version"] > self::VERSION){
                 $result[] = "Invalid 'version' ({$config["version"]}), you were warned not to touch it...";
             }
         }
 
-        if(!array_key_exists("discord", $config) or $config["discord"] === null){
+        if(!array_key_exists("discord", $config) || $config["discord"] === null){
             $result[] = "No 'discord' field found.";
         }else{
-            if(!array_key_exists("command", $config["discord"]) or $config["discord"]["command"] === null){
+            if(!array_key_exists("command", $config["discord"]) || $config["discord"]["command"] === null){
                 $result[] = "No 'discord.command' field found.";
             }else{
                 //Check for a unique prefix? (not a-Z)
-                if(!is_string($config["discord"]["command"]) or strlen($config["discord"]["command"]) < 3){
+                if(!is_string($config["discord"]["command"]) || strlen($config["discord"]["command"]) < 3){
                     $result[] = "Invalid 'discord.command' ({$config["discord"]["command"]}).";
                 }
             }
         }
 
-        if(!array_key_exists("code", $config) or $config["code"] === null){
+        if(!array_key_exists("code", $config) || $config["code"] === null){
             $result[] = "No 'code' field found.";
         }else{
-            if(!array_key_exists("characters", $config["code"]) or $config["code"]["characters"] === null){
+            if(!array_key_exists("characters", $config["code"]) || $config["code"]["characters"] === null){
                 $result[] = "No 'code.characters' field found.";
             }else{
-                if(!is_string($config["code"]["characters"]) or strlen($config["code"]["characters"]) <= 10){
+                if(!is_string($config["code"]["characters"]) || strlen($config["code"]["characters"]) <= 10){
                     $result[] = "Invalid 'code.characters' ({$config["code"]["characters"]}), should be > 10 characters.";
                 }
             }
 
-            if(!array_key_exists("size", $config["code"]) or $config["code"]["size"] === null){
+            if(!array_key_exists("size", $config["code"]) || $config["code"]["size"] === null){
                 $result[] = "No 'code.size' field found.";
             }else{
-                if(!is_int($config["code"]["size"]) or $config["code"]["size"] < 4 or $config["code"]["size"] > 16){
+                if(!is_int($config["code"]["size"]) || $config["code"]["size"] < 4 || $config["code"]["size"] > 16){
                     $result[] = "Invalid 'code.size' ({$config["code"]["size"]}), minimum 4 and maximum 16.";
                 }
             }
 
-            if(!array_key_exists("timeout", $config["code"]) or $config["code"]["timeout"] === null){
+            if(!array_key_exists("timeout", $config["code"]) || $config["code"]["timeout"] === null){
                 $result[] = "No 'code.timeout' field found.";
             }else{
-                if(!is_int($config["code"]["timeout"]) or $config["code"]["timeout"] < 1 or $config["code"]["timeout"] > 1440){
+                if(!is_int($config["code"]["timeout"]) || $config["code"]["timeout"] < 1 || $config["code"]["timeout"] > 1440){
                     $result[] = "Invalid 'code.timeout' ({$config["code"]["timeout"]}), minimum 1 and maximum 1440.";
                 }
             }

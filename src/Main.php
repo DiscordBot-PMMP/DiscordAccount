@@ -1,12 +1,12 @@
 <?php
+
 /*
  * DiscordAccount, PocketMine-MP Plugin.
  *
  * Licensed under the Open Software License version 3.0 (OSL-3.0)
  * Copyright (C) 2022-present JaxkDev
  *
- * Twitter :: @JaxkDev
- * Discord :: JaxkDev#2698
+ * Discord :: JaxkDev
  * Email   :: JaxkDev@gmail.com
  */
 
@@ -25,6 +25,14 @@ use pocketmine\utils\VersionString;
 use poggit\libasynql\DataConnector;
 use poggit\libasynql\libasynql;
 use poggit\libasynql\SqlError;
+use function class_exists;
+use function intval;
+use function is_int;
+use function rename;
+use function rtrim;
+use function sizeof;
+use function strtolower;
+use function time;
 
 class Main extends PluginBase{
 
@@ -87,7 +95,7 @@ class Main extends PluginBase{
         }
 
         $ver = new VersionString($discordBot->getDescription()->getVersion());
-        if($ver->getMajor() !== 3 or ($ver->getMinor() === 0 and $ver->getPatch() < 2)){
+        if($ver->getMajor() !== 3 || ($ver->getMinor() === 0 && $ver->getPatch() < 2)){
             $this->disable("Incompatible dependency 'DiscordBot' detected, v3.0.2 or higher is required however v{$ver->getFullVersion(true)} is installed, see https://github.com/DiscordBot-PMMP/DiscordBot/releases for downloads.");
         }
         if($ver->getSuffix() !== ""){
@@ -104,20 +112,20 @@ class Main extends PluginBase{
 
         /** @var array<string, mixed> $config */
         $config = $this->getConfig()->getAll();
-        if($config === [] or !is_int($config["version"]??"")){
+        if($config === [] || !is_int($config["version"] ?? "")){
             $this->disable("Failed to parse config.yml");
         }
-        $this->getLogger()->debug("Config loaded, version: ".$config["version"]);
+        $this->getLogger()->debug("Config loaded, version: " . $config["version"]);
 
         if(intval($config["version"]) !== ConfigUtils::VERSION){
             $old = $config["version"];
-            $this->getLogger()->info("Updating your config from v".$old." to v".ConfigUtils::VERSION);
+            $this->getLogger()->info("Updating your config from v" . $old . " to v" . ConfigUtils::VERSION);
             ConfigUtils::update($config);
-            rename($this->getDataFolder()."config.yml", $this->getDataFolder()."config.yml.v".$old);
+            rename($this->getDataFolder() . "config.yml", $this->getDataFolder() . "config.yml.v" . $old);
             $this->getConfig()->setAll($config);
             /** @noinspection PhpUnhandledExceptionInspection */
             $this->getConfig()->save();
-            $this->getLogger()->notice("Config updated, old config was saved to '{$this->getDataFolder()}config.yml.v".$old."'");
+            $this->getLogger()->notice("Config updated, old config was saved to '{$this->getDataFolder()}config.yml.v" . $old . "'");
         }
 
         $this->getLogger()->debug("Verifying config...");
@@ -175,7 +183,7 @@ class Main extends PluginBase{
                     $this->getLogger()->debug("Minecraft user checked into database, id: $insertId");
                     $this->database->executeInsert("codes.insert", ["code" => $code, "uuid" => $sender->getUniqueId()->toString(), "expiry" => time() + ($time * 60)], function() use ($code, $sender, $time, $cmd): void{
                         $this->getLogger()->debug("New code generated for {$sender->getName()} ({$sender->getUniqueId()->toString()}) - $code");
-                        $sender->sendMessage("Your code is: ".TextFormat::RED.TextFormat::BOLD.$code.TextFormat::RESET.", it will expire in $time minutes.\nSend `$cmd` in a discord channel to link account.");
+                        $sender->sendMessage("Your code is: " . TextFormat::RED . TextFormat::BOLD . $code . TextFormat::RESET . ", it will expire in $time minutes.\nSend `$cmd` in a discord channel to link account.");
                     }, function(SqlError $error) use ($sender): void{
                         $this->getLogger()->error("Failed to generate code for {$sender->getName()} ({$sender->getUniqueId()->toString()}): " . $error->getErrorMessage());
                         $sender->sendMessage(TextFormat::RED . "Failed to generate code, please try again later.\nIf this issue persists please contact a server administrator.");
@@ -192,7 +200,7 @@ class Main extends PluginBase{
             }
             $this->database->executeChange("links.delete_uuid", ["uuid" => $sender->getUniqueId()->toString()], function(int $affectedRows) use($sender): void{
                 if($affectedRows === 0){
-                    $sender->sendMessage(TextFormat::RED . "You are not linked to a discord account, use ".TextFormat::ITALIC . "/discordlink" . TextFormat::RESET . TextFormat::RED . " to link your account.");
+                    $sender->sendMessage(TextFormat::RED . "You are not linked to a discord account, use " . TextFormat::ITALIC . "/discordlink" . TextFormat::RESET . TextFormat::RED . " to link your account.");
                 }else{
                     $sender->sendMessage("§aYour discord account has been unlinked.");
                 }
@@ -215,39 +223,35 @@ class Main extends PluginBase{
     }
 
     /**
-     * @param string $minecraft_username
      * @param callable $callback function(?string $discord_userid): void{}
-     * @return void
      */
     public function getDiscordByName(string $minecraft_username, Callable $callback): void{
         $this->database->executeSelect("links.get_username", ["username" => strtolower($minecraft_username)], function(array $rows) use($callback): void{
-            $callback($rows[0]["dcid"]??null);
+            $callback($rows[0]["dcid"] ?? null);
         }, function(SqlError $error) use($minecraft_username): void{
             $this->getLogger()->error("Failed to get discord id for $minecraft_username: " . $error->getMessage());
         });
     }
 
     /**
-     * @param string $minecraft_uuid UUID in string format
-     * @param callable $callback function(?string $discord_userid): void{}
-     * @return void
+     * @param string   $minecraft_uuid UUID in string format
+     * @param callable $callback       function(?string $discord_userid): void{}
      */
     public function getDiscordByUuid(string $minecraft_uuid, Callable $callback): void{
         $this->database->executeSelect("links.get_uuid", ["uuid" => $minecraft_uuid], function(array $rows) use ($callback): void{
-            $callback($rows[0]["dcid"]??null);
+            $callback($rows[0]["dcid"] ?? null);
         }, function(SqlError $error) use ($minecraft_uuid): void{
-            $this->getLogger()->error("Failed to get discord id for $minecraft_uuid: ".$error->getMessage());
+            $this->getLogger()->error("Failed to get discord id for $minecraft_uuid: " . $error->getMessage());
         });
     }
 
     /**
-     * @param string $dcid Discord USER_ID
+     * @param string   $dcid     Discord USER_ID
      * @param callable $callback function(?string $minecraft_username, ?string $minecraft_uuid): void{}
-     * @return void
      */
     public function getMinecraftByDcid(string $dcid, Callable $callback): void{
         $this->database->executeSelect("links.get_dcid", ["dcid" => $dcid], function(array $rows) use($callback): void{
-            $callback($rows[0]["username"]??null, $rows[0]["uuid"]??null);
+            $callback($rows[0]["username"] ?? null, $rows[0]["uuid"] ?? null);
         }, function(SqlError $error) use($dcid): void{
             $this->getLogger()->error("Failed to get minecraft data for $dcid: " . $error->getMessage());
         });

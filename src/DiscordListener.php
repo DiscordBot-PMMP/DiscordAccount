@@ -1,12 +1,12 @@
 <?php
+
 /*
  * DiscordAccount, PocketMine-MP Plugin.
  *
  * Licensed under the Open Software License version 3.0 (OSL-3.0)
  * Copyright (C) 2022-present JaxkDev
  *
- * Twitter :: @JaxkDev
- * Discord :: JaxkDev#2698
+ * Discord :: JaxkDev
  * Email   :: JaxkDev@gmail.com
  */
 
@@ -16,7 +16,6 @@ use JaxkDev\DiscordBot\Models\Emoji;
 use JaxkDev\DiscordBot\Models\Interactions\ApplicationCommandData;
 use JaxkDev\DiscordBot\Models\Interactions\Interaction;
 use JaxkDev\DiscordBot\Models\Interactions\InteractionType;
-use JaxkDev\DiscordBot\Models\Interactions\MessageComponentData;
 use JaxkDev\DiscordBot\Models\Interactions\ModalSubmitData;
 use JaxkDev\DiscordBot\Models\Messages\Component\ActionRow;
 use JaxkDev\DiscordBot\Models\Messages\Component\Button;
@@ -35,6 +34,14 @@ use JaxkDev\DiscordBot\Plugin\Events\InteractionReceived;
 use JaxkDev\DiscordBot\Plugin\Events\MessageSent;
 use pocketmine\event\Listener;
 use poggit\libasynql\SqlError;
+use function array_shift;
+use function date;
+use function explode;
+use function sizeof;
+use function str_ends_with;
+use function str_starts_with;
+use function strtolower;
+use function time;
 
 final class DiscordListener implements Listener{
 
@@ -69,9 +76,6 @@ final class DiscordListener implements Listener{
                 $this->sendMainMenu($message->getChannelId(), $message->getId(), $message->getAuthorId());
             });
         }
-
-
-
 
             /*
                     //Code provided.
@@ -205,8 +209,8 @@ final class DiscordListener implements Listener{
                     });
                 }else{
                     //valid code provided.
-                    $this->plugin->getDatabase()->executeInsert("links.insert", ["dcid" => $interaction->getUserId()??"§", "uuid" => $rows[0]["uuid"]], function() use ($code, $interaction){
-                        $this->plugin->getDatabase()->executeSelect("links.get_dcid", ["dcid" => $interaction->getUserId()??"§"], function(array $rows) use ($interaction){
+                    $this->plugin->getDatabase()->executeInsert("links.insert", ["dcid" => $interaction->getUserId() ?? "§", "uuid" => $rows[0]["uuid"]], function() use ($code, $interaction){
+                        $this->plugin->getDatabase()->executeSelect("links.get_dcid", ["dcid" => $interaction->getUserId() ?? "§"], function(array $rows) use ($interaction){
                             $this->api->interactionRespondWithMessage($interaction, null, [
                                 new Embed("✅ Linked Account", $interaction->getMessage() === null ? "(_Failed to update main menu with details_)" : null, null, time(), null, new Footer("DiscordAccount v" . $this->plugin->getDescription()->getVersion())),
                             ], null, null, null, true)->otherwise(function(ApiRejection $rejection){
@@ -243,14 +247,14 @@ final class DiscordListener implements Listener{
             ], null, null, null, true)->otherwise(function(ApiRejection $rejection){
                 $this->plugin->getLogger()->error("Failed to send link error response: " . $rejection->getMessage());
             });
-            $this->plugin->getLogger()->error("Failed to get/check code: ".$error);
+            $this->plugin->getLogger()->error("Failed to get/check code: " . $error);
         });
     }
 
     protected function linkAccountInitial(Interaction $interaction): void{
         $this->plugin->getDatabase()->executeSelect("links.get_dcid", ["dcid" => $interaction->getUserId() ?? ""], function(array $rows) use ($interaction){
             if(sizeof($rows) !== 0){
-                $this->api->interactionRespondWithMessage($interaction, "You are already linked to a Minecraft account `".$rows[0]["username"]." (".$rows[0]["uuid"].")`.\nUse the unlink button to remove this Minecraft account.")->otherwise(function(ApiRejection $rejection){
+                $this->api->interactionRespondWithMessage($interaction, "You are already linked to a Minecraft account `" . $rows[0]["username"] . " (" . $rows[0]["uuid"] . ")`.\nUse the unlink button to remove this Minecraft account.")->otherwise(function(ApiRejection $rejection){
                     $this->plugin->getLogger()->error("Failed to send already linked response: " . $rejection->getMessage());
                 });
                 if($interaction->getMessage() !== null && $interaction->getUserId() !== null){
@@ -281,7 +285,7 @@ final class DiscordListener implements Listener{
     protected function unlinkAccount(Interaction $interaction): void{
         $this->plugin->getDatabase()->executeChange("links.delete_dcid", ["dcid" => $interaction->getUserId() ?? ""], function(int $changed) use($interaction){
             $this->api->interactionRespondWithMessage($interaction, null, [
-                new Embed($changed >= 1 ? "✅ Unlinked Account" : "❌ No account to unlink.", null, null, time(), null, new Footer("DiscordAccount v".$this->plugin->getDescription()->getVersion())),
+                new Embed($changed >= 1 ? "✅ Unlinked Account" : "❌ No account to unlink.", null, null, time(), null, new Footer("DiscordAccount v" . $this->plugin->getDescription()->getVersion())),
             ], null, null, null, true)->otherwise(function(ApiRejection $rejection){
                 $this->plugin->getLogger()->error($rejection->getMessage());
             });
