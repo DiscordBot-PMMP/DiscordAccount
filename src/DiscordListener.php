@@ -63,7 +63,7 @@ final class DiscordListener implements Listener{
         if(strtolower($command) === $this->plugin->getConfig()->getNested("discord.command", "/mclink")){
             $this->plugin->getDatabase()->executeSelect("links.get_dcid", ["dcid" => $message->getAuthorId()], function(array $rows) use ($message){
                 $this->sendMainMenu($message->getChannelId(), $message->getId(), $message->getAuthorId(),
-                    $rows[0]["username"] ?? null, $rows[0]["uuid"] ?? null, $rows[0]["created_on"] !== null ? (new \DateTime($rows[0]["created_on"]))->getTimestamp() : null);
+                    $rows[0]["username"] ?? null, $rows[0]["uuid"] ?? null, ($rows[0]["created_on"] ?? null) !== null ? (new \DateTime($rows[0]["created_on"]))->getTimestamp() : null);
             }, function(SqlError $error) use ($message){
                 $this->plugin->getLogger()->error("Failed to check discord account link status for main menu: " . $error->getErrorMessage());
                 $this->sendMainMenu($message->getChannelId(), $message->getId(), $message->getAuthorId());
