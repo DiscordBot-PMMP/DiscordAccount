@@ -1,5 +1,5 @@
 name: DiscordAccount
-version: 1.1.0
+version: 1.1.1-dev
 author: JaxkDev
 main: JaxkDev\DiscordAccount\Main
 src-namespace-prefix: JaxkDev\DiscordAccount
