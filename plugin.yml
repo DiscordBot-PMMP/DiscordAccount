@@ -1,5 +1,5 @@
 name: DiscordAccount
-version: 1.1.0-dev
+version: 1.1.0
 author: JaxkDev
 main: JaxkDev\DiscordAccount\Main
 src-namespace-prefix: JaxkDev\DiscordAccount
@@ -7,8 +7,6 @@ description: A central plugin to create connections between Minecraft and Discor
 website: https://github.com/DiscordBot-PMMP/DiscordAccount
 
 api: 5.0.0
-softdepend: #For development purposes only.
-  - DEVirion
 depend:
   - DiscordBot
 
