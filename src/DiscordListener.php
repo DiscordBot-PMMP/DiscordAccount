@@ -277,7 +277,7 @@ final class DiscordListener implements Listener{
     $api->addRole($guildId, $userId, $roleId)->otherwise(function(ApiRejection $rejection){
         $this->plugin->getLogger()->error("Failed to add role to user: " . $rejection->getMessage());
     });
-}
+  }
 
     protected function linkAccountInitial(Interaction $interaction): void{
         $this->plugin->getDatabase()->executeSelect("links.get_dcid", ["dcid" => $interaction->getUserId() ?? ""], function(array $rows) use ($interaction){
@@ -300,4 +300,95 @@ final class DiscordListener implements Listener{
                     $this->plugin->getLogger()->error("Failed to send initial link response: " . $rejection->getMessage());
                 });
             }
-        }, function(SqlError $error) use
+        }, function(SqlError $error) use ($interaction){
+            $this->plugin->getLogger()->error("Failed to check dc account link status: " . $error->getErrorMessage());
+            $this->api->interactionRespondWithMessage($interaction, null, [
+                new Embed("❌ Failed to Link Account", "An error occurred while checking your account.", null, time(), null, new Footer("DiscordAccount v" . $this->plugin->getDescription()->getVersion())),
+            ], null, null, null, true)->otherwise(function(ApiRejection $rejection){
+                $this->plugin->getLogger()->error("Failed to send link response: " . $rejection->getMessage());
+            });
+        });
+    }
+
+    protected function unlinkAccount(Interaction $interaction): void{
+        $this->plugin->getDatabase()->executeChange("links.delete_dcid", ["dcid" => $interaction->getUserId() ?? ""], function(int $changed) use($interaction){
+            $this->api->interactionRespondWithMessage($interaction, null, [
+                new Embed($changed >= 1 ? "✅ Unlinked Account" : "❌ No account to unlink.", null, null, time(), null, new Footer("DiscordAccount v" . $this->plugin->getDescription()->getVersion())),
+            ], null, null, null, true)->otherwise(function(ApiRejection $rejection){
+                $this->plugin->getLogger()->error($rejection->getMessage());
+            });
+            if($interaction->getMessage() !== null && $interaction->getUserId() !== null){
+                $this->updateMainMenu($interaction->getMessage(), $interaction->getUserId());
+            }
+        }, function(SqlError $error) use($interaction){
+            $this->api->interactionRespondWithMessage($interaction, null, [
+                new Embed("❌ Failed to Unlink Account", "An error occurred while unlinking your account.", null, time(), null, new Footer("DiscordAccount v" . $this->plugin->getDescription()->getVersion())),
+            ], null, null, null, true)->otherwise(function(ApiRejection $rejection){
+                $this->plugin->getLogger()->error("Failed to send link response: " . $rejection->getMessage());
+            });
+            $this->plugin->getLogger()->error("Failed to unlink account: " . $error->getErrorMessage());
+        });
+    }
+
+    protected function updateMainMenu(Message $message, string $author_id, ?string $username = null, ?string $uuid = null, ?int $timestamp = null): void{
+        $message->setComponents([
+            new ActionRow([
+                new Button(ButtonStyle::SUCCESS, "Link", Emoji::fromUnicode("🔗"), "discordaccount_link_" . $author_id, null, $username !== null),
+                new Button(ButtonStyle::DANGER, "Unlink", Emoji::fromUnicode("📵"), "discordaccount_unlink_" . $author_id, null, $username === null)
+            ])
+        ]);
+        $message->setEmbeds([
+            new Embed(
+                "Minecraft Account",
+                $username === null ? "You are not linked to a Minecraft account." : "Linked Minecraft account details:",
+                null,
+                time(),
+                null,
+                new Footer("DiscordAccount v" . $this->plugin->getDescription()->getVersion()),
+                null, //new Image("https://vignette.wikia.nocookie.net/minecraft/images/3/3b/MinecraftApp.png"),
+                null,
+                null,
+                null,
+                null, //new Author("Minecraft Account", null, "https://vignette.wikia.nocookie.net/minecraft/images/3/3b/MinecraftApp.png"),
+                ($username === null || $uuid === null) ? [] : [
+                    new Field("Username", $username, true),
+                    new Field("UUID", $uuid, true),
+                    new Field("Linked On", date("d/m/Y H:i:s", $timestamp), false),
+                ]
+            )
+        ]);
+        $this->api->editMessage($message)->otherwise(function(ApiRejection $rejection){
+            $this->plugin->getLogger()->error("Failed to update main menu: " . $rejection->getMessage());
+        });
+    }
+
+    protected function sendMainMenu(string $channel_id, string $reference_id, string $user_id, ?string $username = null, ?string $uuid = null, ?int $timestamp = null): void{
+        $this->api->sendMessage(null, $channel_id, null, $reference_id, [
+            new Embed(
+                "Minecraft Account",
+                $username === null ? "You are not linked to a Minecraft account." : "Linked Minecraft account details:",
+                null,
+                time(),
+                null,
+                new Footer("DiscordAccount v" . $this->plugin->getDescription()->getVersion()),
+                null, //new Image("https://vignette.wikia.nocookie.net/minecraft/images/3/3b/MinecraftApp.png"),
+                null,
+                null,
+                null,
+                null, //new Author("Minecraft Account", null, "https://vignette.wikia.nocookie.net/minecraft/images/3/3b/MinecraftApp.png"),
+                ($username === null || $uuid === null) ? [] : [
+                    new Field("Username", $username, true),
+                    new Field("UUID", $uuid, true),
+                    new Field("Linked On", date("d/m/Y H:i:s", $timestamp), false),
+                ]
+            )
+        ], null, [
+            new ActionRow([
+                new Button(ButtonStyle::SUCCESS, "Link", Emoji::fromUnicode("🔗"), "discordaccount_link_" . $user_id, null, $username !== null),
+                new Button(ButtonStyle::DANGER, "Unlink", Emoji::fromUnicode("📵"), "discordaccount_unlink_" . $user_id, null, $username === null)
+            ])
+        ])->otherwise(function(ApiRejection $rejection){
+            $this->plugin->getLogger()->error("Failed to send command response: " . $rejection->getMessage());
+        });
+    }
+}
