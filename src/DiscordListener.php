@@ -220,7 +220,7 @@ final class DiscordListener implements Listener{
                         	$cfg = $this->plugin->getConfig();
                             $this->updateMainMenu($interaction->getMessage(), $interaction->getUserId(), $rows[0]["username"], $rows[0]["uuid"], (new \DateTime($rows[0]["created_on"]))->getTimestamp());
                             $this->updateDiscordNickname($interaction->getUserId(), $rows[0]["username"]);
-                            $this->addRoleToUser($interaction->getUserId(), $cfg->get("ROLEID"));
+                            $this->addRoleToUser($interaction->getUserId(), (string)$cfg->get("ROLEID"));
                         }
                     }, function(SqlError $error) use($interaction){
                         $this->plugin->getLogger()->error("Failed to get linked account details, but still linked.");
@@ -258,7 +258,7 @@ final class DiscordListener implements Listener{
     $discord = $this->plugin->getDiscord();
     $api = $discord->getApi();
     $cfg = $this->plugin->getConfig();
-    $guildId = $cfg->get("GUILDID");
+    $guildId = (string) $cfg->get("GUILDID");
     $nickname = $username;    
     $api->updateNickname($guildId, $userId, $nickname)->then(function() use ($userId, $username) {
         $this->plugin->getLogger()->info("Successfully updated Discord nickname for user $userId to $username");
@@ -273,7 +273,7 @@ final class DiscordListener implements Listener{
     $api = $discord->getApi();
     
     $cfg = $this->plugin->getConfig();
-    $guildId = $cfg->get("GUILDID");
+    $guildId = (string) $cfg->get("GUILDID");
     $api->addRole($guildId, $userId, $roleId)->otherwise(function(ApiRejection $rejection){
         $this->plugin->getLogger()->error("Failed to add role to user: " . $rejection->getMessage());
     });
