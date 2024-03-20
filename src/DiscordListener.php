@@ -221,7 +221,6 @@ final class DiscordListener implements Listener{
                             $this->updateMainMenu($interaction->getMessage(), $interaction->getUserId(), $rows[0]["username"], $rows[0]["uuid"], (new \DateTime($rows[0]["created_on"]))->getTimestamp());
                             $this->updateDiscordNickname($interaction->getUserId(), $rows[0]["username"]);
                             $this->addRoleToUser($interaction->getUserId(), $cfg->get("ROLEID"));
-                    }
                         }
                     }, function(SqlError $error) use($interaction){
                         $this->plugin->getLogger()->error("Failed to get linked account details, but still linked.");
